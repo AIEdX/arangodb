@@ -22,6 +22,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 #include "Methods.h"
+#include <s2/base/integral_types.h>
 #include "Futures/Future.h"
 #include "Cluster/ServerState.h"
 #include "ApplicationFeatures/ApplicationServer.h"
@@ -53,6 +54,12 @@ struct WasmVmMethodsSingleServer final
   auto getAllWasmUdfs() const -> futures::Future<
       std::unordered_map<std::string, WasmFunction>> override {
     return vocbase.server().getFeature<WasmServerFeature>().getAllFunctions();
+  }
+
+  auto executeWasmUdf(std::string const& name, uint64_t a, uint64_t b) const
+      -> futures::Future<std::optional<uint64_t>> override {
+    return vocbase.server().getFeature<WasmServerFeature>().executeFunction(
+        name, a, b);
   }
 
   TRI_vocbase_t& vocbase;
