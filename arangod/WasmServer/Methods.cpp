@@ -44,7 +44,7 @@ struct WasmVmMethodsSingleServer final
     return Result{TRI_ERROR_NO_ERROR};
   }
 
-  auto deleteModule(std::string const& name) const
+  auto deleteModule(ModuleName const& name) const
       -> futures::Future<Result> override {
     vocbase.server().getFeature<WasmServerFeature>().deleteModule(name);
     return Result{TRI_ERROR_NO_ERROR};
@@ -55,8 +55,8 @@ struct WasmVmMethodsSingleServer final
     return vocbase.server().getFeature<WasmServerFeature>().allModules();
   }
 
-  auto executeFunction(std::string const& moduleName,
-                       std::string const& functionName,
+  auto executeFunction(ModuleName const& moduleName,
+                       FunctionName const& functionName,
                        FunctionParameters const& parameters) const
       -> futures::Future<std::optional<uint64_t>> override {
     return vocbase.server().getFeature<WasmServerFeature>().executeFunction(
