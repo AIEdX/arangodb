@@ -192,6 +192,7 @@ set(ARANGODB_TESTS_SOURCES
   Basics/FixedSizeAllocatorTest.cpp
   Basics/GuardedTest.cpp
   Basics/InifileParserTest.cpp
+  Basics/InspectionTest.cpp
   Basics/LoggerTest.cpp
   Basics/MemoryUsageTest.cpp
   Basics/NumberUtilsTest.cpp
@@ -216,6 +217,7 @@ set(ARANGODB_TESTS_SOURCES
   Cache/Table.cpp
   Cache/TransactionalBucket.cpp
   Cache/TransactionalCache.cpp
+  Cache/TransactionalCacheVPackKeyHasher.cpp
   Cache/TransactionalStore.cpp
   Cache/TransactionManager.cpp
   Cache/TransactionsWithBackingStore.cpp
@@ -268,6 +270,7 @@ set(ARANGODB_TESTS_SOURCES
   Network/UtilsTest.cpp
   Pregel/typedbuffer.cpp
   Replication/ReplicationClientsProgressTrackerTest.cpp
+  Rest/PathMatchTest.cpp
   RestHandler/RestAnalyzerHandlerTest.cpp
   RestHandler/RestDocumentHandlerTest.cpp
   RestHandler/RestUsersHandlerTest.cpp

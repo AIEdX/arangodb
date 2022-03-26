@@ -242,7 +242,7 @@ const replicatedLogSuite = function () {
       }));
       {
         const {current} = readReplicatedLogAgency(database, logId);
-        const actions = current.supervision.actions;
+        const actions = current.actions;
         // we expect the last three actions to be
         //  3. update participant flags with leader.forced = true
         //  2. dictate leadership with new leader
@@ -256,7 +256,7 @@ const replicatedLogSuite = function () {
         {
           const action = _.nth(actions, -2).desc;
           assertEqual(action.type, 'DictateLeaderAction');
-          assertEqual(action.newTerm.leader.serverId, newLeader);
+          assertEqual(action.newLeader.serverId, newLeader);
         }
         {
           const action = _.nth(actions, -1).desc;
@@ -308,6 +308,50 @@ const replicatedLogSuite = function () {
       waitFor(replicatedLogParticipantsFlag(database, logId, {
         [newServer]: {allowedInQuorum: false, allowedAsLeader: false, forced: false},
       }));
+
+      replicatedLogDeleteTarget(database, logId);
+    },
+
+    // This test removes a participant from the replicated log
+    testRemoveFollowerParticipant: function () {
+      const {logId, servers, followers} = createReplicatedLogAndWaitForLeader(database);
+
+      // first add a new server, but with excluded flag
+      const newServer = _.sample(_.difference(dbservers, servers));
+      replicatedLogUpdateTargetParticipants(database, logId, {
+        [newServer]: {allowedInQuorum: true, allowedAsLeader: true},
+      });
+
+      waitFor(replicatedLogParticipantsFlag(database, logId, {
+        [newServer]: {allowedInQuorum: true, allowedAsLeader: true, forced: false},
+      }));
+
+      const removedServer = _.sample(followers);
+      replicatedLogUpdateTargetParticipants(database, logId, {
+        [removedServer]: null,
+      });
+
+      waitFor(replicatedLogParticipantsFlag(database, logId, {
+        [removedServer]: null,
+      }));
+
+      {
+        const {current} = readReplicatedLogAgency(database, logId);
+        const actions = current.actions;
+        // we expect the last actions to be
+        //  1. remove the server
+        //  2. dictate leadership with new leader
+        {
+          const action = _.nth(actions, -2).desc;
+          assertEqual(action.type, 'UpdateParticipantFlagsAction');
+          assertEqual(action.flags, {allowedAsLeader: true, allowedInQuorum: false, forced: false});
+        }
+        {
+          const action = _.nth(actions, -1).desc;
+          assertEqual(action.type, 'RemoveParticipantFromPlanAction');
+          assertEqual(action.participant, removedServer);
+        }
+      }
 
       replicatedLogDeleteTarget(database, logId);
     },
