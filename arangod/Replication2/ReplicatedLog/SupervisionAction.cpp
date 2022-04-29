@@ -21,14 +21,15 @@
 ////////////////////////////////////////////////////////////////////////////////
 #include "SupervisionAction.h"
 
-#include "Agency/TransactionBuilder.h"
-#include "Replication2/ReplicatedLog/AgencyLogSpecification.h"
-#include "velocypack/Builder.h"
-#include "velocypack/velocypack-common.h"
+#include <velocypack/Builder.h>
+#include <velocypack/velocypack-common.h>
 
 #include "Agency/AgencyPaths.h"
-
+#include "Agency/TransactionBuilder.h"
+#include "Inspection/VPack.h"
 #include "Logger/LogMacros.h"
+#include "Replication2/ReplicatedLog/AgencyLogSpecification.h"
+#include "Replication2/ReplicatedLog/AgencySpecificationInspectors.h"
 
 using namespace arangodb::replication2::agency;
 namespace paths = arangodb::cluster::paths::aliases;
