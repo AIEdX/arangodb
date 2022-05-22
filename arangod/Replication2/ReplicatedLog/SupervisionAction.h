@@ -177,9 +177,11 @@ struct AddLogToPlanAction {
   std::optional<LogPlanTermSpecification::Leader> _leader;
 
   auto execute(ActionContext& ctx) const -> void {
-    ctx.setPlan(LogPlanSpecification(
+    auto newPlan = LogPlanSpecification(
         _id, LogPlanTermSpecification(LogTerm{1}, _config, _leader),
-        ParticipantsConfig{.generation = 1, .participants = _participants}));
+        ParticipantsConfig{.generation = 1, .participants = _participants});
+    newPlan.owner = "target";
+    ctx.setPlan(newPlan);
   }
 };
 template<typename Inspector>
@@ -520,8 +522,8 @@ using Action = std::variant<
     ConvergedToTargetAction>;
 
 auto execute(Action const& action, DatabaseID const& dbName, LogId const& log,
-             std::optional<LogPlanSpecification> plan,
-             std::optional<LogCurrent> current,
+             std::optional<LogPlanSpecification> const& plan,
+             std::optional<LogCurrent> const& current,
              arangodb::agency::envelope envelope) -> arangodb::agency::envelope;
 
 auto to_string(Action const& action) -> std::string_view;
