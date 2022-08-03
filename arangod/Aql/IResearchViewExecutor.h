@@ -43,7 +43,7 @@
 #include <variant>
 
 namespace iresearch {
-class score;
+struct score;
 struct document;
 }  // namespace iresearch
 
@@ -86,11 +86,11 @@ class IResearchViewExecutorInfos {
       iresearch::ViewSnapshotPtr reader, OutRegisters outRegister,
       std::vector<RegisterId> scoreRegisters, aql::QueryContext& query,
       std::vector<iresearch::Scorer> const& scorers,
-      std::pair<iresearch::IResearchViewSort const*, size_t> sort,
+      std::pair<iresearch::IResearchSortBase const*, size_t> sort,
       iresearch::IResearchViewStoredValues const& storedValues,
       ExecutionPlan const& plan, Variable const& outVariable,
       aql::AstNode const& filterCondition, std::pair<bool, bool> volatility,
-      VarInfoMap const& varInfoMap, int depth,
+      bool isOldMangling, VarInfoMap const& varInfoMap, int depth,
       iresearch::IResearchViewNode::ViewValuesRegisters&&
           outNonMaterializedViewRegs,
       iresearch::CountApproximate, iresearch::FilterOptimization,
@@ -117,6 +117,7 @@ class IResearchViewExecutorInfos {
   int getDepth() const noexcept;
   bool volatileSort() const noexcept;
   bool volatileFilter() const noexcept;
+  bool isOldMangling() const noexcept;
   iresearch::CountApproximate countApproximate() const noexcept {
     return _countApproximate;
   }
@@ -126,7 +127,7 @@ class IResearchViewExecutorInfos {
 
   // first - sort
   // second - number of sort conditions to take into account
-  std::pair<iresearch::IResearchViewSort const*, size_t> const& sort()
+  std::pair<iresearch::IResearchSortBase const*, size_t> const& sort()
       const noexcept;
 
   iresearch::IResearchViewStoredValues const& storedValues() const noexcept;
@@ -135,20 +136,24 @@ class IResearchViewExecutorInfos {
 
   auto scoresSort() const noexcept { return std::span{_scorersSort}; }
 
+  size_t scoreRegistersCount() const noexcept { return _scoreRegistersCount; }
+
  private:
   aql::RegisterId _documentOutReg;
   aql::RegisterId _collectionPointerReg;
   std::vector<RegisterId> _scoreRegisters;
+  size_t _scoreRegistersCount;
   iresearch::ViewSnapshotPtr const _reader;
   aql::QueryContext& _query;
   std::vector<iresearch::Scorer> const& _scorers;
-  std::pair<iresearch::IResearchViewSort const*, size_t> _sort;
+  std::pair<iresearch::IResearchSortBase const*, size_t> _sort;
   iresearch::IResearchViewStoredValues const& _storedValues;
   ExecutionPlan const& _plan;
   Variable const& _outVariable;
   aql::AstNode const& _filterCondition;
   bool const _volatileSort;
   bool const _volatileFilter;
+  bool const _isOldMangling;
   VarInfoMap const& _varInfoMap;
   int const _depth;
   iresearch::IResearchViewNode::ViewValuesRegisters _outNonMaterializedViewRegs;
@@ -251,6 +256,8 @@ class IndexReadBuffer {
     _scoresSort = s;
   }
 
+  irs::score_t* pushNoneScores(size_t count);
+
   template<typename... Args>
   void pushValue(Args&&... args);
 
@@ -260,10 +267,6 @@ class IndexReadBuffer {
   // A note on the scores: instead of saving an array of AqlValues, we could
   // save an array of floats plus a bitfield noting which entries should be
   // None.
-
-  void pushScore(float_t scoreValue);
-
-  void pushScoreNone();
 
   void reset() noexcept {
     // Should only be called after everything was consumed
@@ -476,8 +479,7 @@ class IResearchViewExecutorBase {
 
   Infos const& infos() const noexcept;
 
-  void fillScores(ReadContext const& ctx, float_t const* begin,
-                  float_t const* end);
+  void fillScores(irs::score const& score);
 
   bool writeRow(ReadContext& ctx, IndexReadBufferEntry bufferEntry,
                 LocalDocumentId const& documentId,
@@ -516,7 +518,7 @@ class IResearchViewExecutorBase {
   FilterCtx _filterCtx;  // filter context
   iresearch::ViewSnapshotPtr _reader;
   irs::filter::prepared::ptr _filter;
-  irs::order::prepared _order;
+  irs::Order _order;
   std::vector<ColumnIterator>
       _storedValuesReaders;  // current stored values readers
   bool _isInitialized;
@@ -545,8 +547,6 @@ class IResearchViewExecutor
   size_t skipAll(IResearchViewStats&);
 
   void saveCollection();
-
-  void evaluateScores(ReadContext const& ctx);
 
   void fillBuffer(ReadContext& ctx);
 
@@ -636,7 +636,7 @@ class IResearchViewMergeExecutor
 
   class MinHeapContext {
    public:
-    MinHeapContext(iresearch::IResearchViewSort const& sort, size_t sortBuckets,
+    MinHeapContext(iresearch::IResearchSortBase const& sort, size_t sortBuckets,
                    std::vector<Segment>& segments) noexcept;
 
     // advance
@@ -645,15 +645,12 @@ class IResearchViewMergeExecutor
     // compare
     bool operator()(size_t lhs, size_t rhs) const;
 
-    iresearch::VPackComparer _less;
+    iresearch::VPackComparer<iresearch::IResearchSortBase> _less;
     std::vector<Segment>* _segments;
   };
 
   // reads local document id from a specified segment
   LocalDocumentId readPK(Segment const& segment);
-
-  void evaluateScores(ReadContext const& ctx, irs::score const& score,
-                      size_t numScores);
 
   void fillBuffer(ReadContext& ctx);
 
@@ -665,7 +662,7 @@ class IResearchViewMergeExecutor
 
  private:
   std::vector<Segment> _segments;
-  irs::external_heap_iterator<MinHeapContext> _heap_it;
+  irs::ExternalHeapIterator<MinHeapContext> _heap_it;
 };  // IResearchViewMergeExecutor
 
 template<bool copyStored, bool ordered,

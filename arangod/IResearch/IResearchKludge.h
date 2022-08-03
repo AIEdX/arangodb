@@ -35,6 +35,9 @@
 
 namespace arangodb::iresearch::kludge {
 
+#ifdef USE_ENTERPRISE
+void mangleNested(std::string& name);
+#endif
 void mangleType(std::string& name);
 void mangleAnalyzer(std::string& name);
 
@@ -43,7 +46,7 @@ void mangleBool(std::string& name);
 void mangleNumeric(std::string& name);
 void mangleString(std::string& name);
 
-void mangleField(std::string& name, bool isSearchFilter,
+void mangleField(std::string& name, bool isOldMangling,
                  iresearch::FieldMeta::Analyzer const& analyzer);
 
 }  // namespace arangodb::iresearch::kludge
