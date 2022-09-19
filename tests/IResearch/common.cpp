@@ -137,7 +137,11 @@ std::ostream& operator<<(std::ostream& os, And const& filter) {
 }
 
 std::ostream& operator<<(std::ostream& os, Or const& filter) {
-  os << "OR[";
+  os << "OR";
+  if (filter.min_match_count() != 1) {
+    os << "(" << filter.min_match_count() << ")";
+  }
+  os << "[";
   for (auto it = filter.begin(); it != filter.end(); ++it) {
     if (it != filter.begin()) {
       os << " || ";
@@ -203,9 +207,18 @@ std::ostream& operator<<(std::ostream& os, by_terms const& filter) {
   return os;
 }
 
+std::ostream& operator<<(std::ostream& os, all const& filter) {
+  os << "ALL[";
+  os << filter.boost();
+  os << "]";
+  return os;
+}
+
 std::ostream& operator<<(std::ostream& os, filter const& filter) {
   const auto& type = filter.type();
-  if (type == irs::type<And>::id()) {
+  if (type == irs::type<all>::id()) {
+    return os << static_cast<all const&>(filter);
+  } else if (type == irs::type<And>::id()) {
     return os << static_cast<And const&>(filter);
   } else if (type == irs::type<Or>::id()) {
     return os << static_cast<Or const&>(filter);
@@ -234,6 +247,12 @@ std::ostream& operator<<(std::ostream& os, filter const& filter) {
   } else {
     return os << "[Unknown filter]";
   }
+}
+
+std::string to_string(irs::filter const& f) {
+  std::stringstream ss;
+  ss << f;
+  return ss.str();
 }
 }  // namespace iresearch
 
@@ -851,7 +870,7 @@ void assertFilterBoost(irs::filter const& expected, irs::filter const& actual) {
 
   if (expectedNegationFilter) {
     auto* actualNegationFilter = dynamic_cast<irs::Not const*>(&actual);
-    ASSERT_NE(nullptr, expectedNegationFilter);
+    ASSERT_NE(nullptr, actualNegationFilter);
 
     assertFilterBoost(*expectedNegationFilter->filter(),
                       *actualNegationFilter->filter());
@@ -958,7 +977,8 @@ void assertFilter(
     std::shared_ptr<arangodb::velocypack::Builder> bindVars /*= nullptr*/,
     std::string const& refName /*= "d"*/,
     arangodb::iresearch::FilterOptimization filterOptimization /*= NONE*/,
-    bool searchQuery /*= true*/, bool oldMangling /*= true*/) {
+    bool searchQuery /*= true*/, bool oldMangling /*= true*/,
+    bool hasNested /*= false*/) {
   SCOPED_TRACE(testing::Message("assertFilter failed for query:<")
                << queryString << "> parseOk:" << parseOk
                << " execOk:" << execOk);
@@ -1015,7 +1035,8 @@ void assertFilter(
         .ref = ref,
         .filterOptimization = filterOptimization,
         .isSearchQuery = searchQuery,
-        .isOldMangling = oldMangling};
+        .isOldMangling = oldMangling,
+        .hasNestedFields = hasNested};
     arangodb::iresearch::FieldMeta::Analyzer analyzer{
         arangodb::iresearch::IResearchAnalyzerFeature::identity()};
     arangodb::iresearch::FilterContext const filterCtx{.contextAnalyzer =
@@ -1044,7 +1065,8 @@ void assertFilter(
         .ref = ref,
         .filterOptimization = filterOptimization,
         .isSearchQuery = searchQuery,
-        .isOldMangling = oldMangling};
+        .isOldMangling = oldMangling,
+        .hasNestedFields = hasNested};
     arangodb::iresearch::FieldMeta::Analyzer analyzer{
         arangodb::iresearch::IResearchAnalyzerFeature::identity()};
     arangodb::iresearch::FilterContext const filterCtx{.contextAnalyzer =
@@ -1066,10 +1088,11 @@ void assertFilterSuccess(
     std::shared_ptr<velocypack::Builder> bindVars /*= nullptr*/,
     std::string const& refName /*= "d"*/,
     arangodb::iresearch::FilterOptimization filterOptimization /*= NONE*/,
-    bool searchQuery /*= true*/, bool oldMangling /*= true*/) {
+    bool searchQuery /*= true*/, bool oldMangling /*= true*/,
+    bool hasNested /*= false*/) {
   return assertFilter(vocbase, true, true, queryString, expected, exprCtx,
                       bindVars, refName, filterOptimization, searchQuery,
-                      oldMangling);
+                      oldMangling, hasNested);
 }
 
 void assertFilterFail(
@@ -1107,10 +1130,14 @@ void assertFilterParseFail(
 VPackBuilder getInvertedIndexPropertiesSlice(
     IndexId iid, std::vector<std::string> const& fields,
     std::vector<std::vector<std::string>> const* storedFields,
-    std::vector<std::pair<std::string, bool>> const* sortedFields) {
+    std::vector<std::pair<std::string, bool>> const* sortedFields,
+    std::string_view name) {
   VPackBuilder vpack;
   {
     VPackObjectBuilder obj(&vpack);
+    if (!name.empty()) {
+      vpack.add(arangodb::StaticStrings::IndexName, VPackValue{name});
+    }
     vpack.add(arangodb::StaticStrings::IndexId, VPackValue(iid.id()));
     vpack.add(arangodb::StaticStrings::IndexType, VPackValue("inverted"));
 

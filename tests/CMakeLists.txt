@@ -93,7 +93,6 @@ set(ARANGODB_TESTS_SOURCES
   Agency/TransactionBuilderTests.cpp
   Aql/AqlCallListTest.cpp
   Aql/AqlExecutorTestCase.cpp
-  Aql/AqlSharedExecutionBlockImplTest.cpp
   Aql/AqlHelper.cpp
   Aql/AqlItemBlockInputRangeTest.cpp
   Aql/AqlItemBlockTest.cpp
@@ -120,7 +119,6 @@ set(ARANGODB_TESTS_SOURCES
   Aql/EnumerateCollectionExecutorTest.cpp
   Aql/EnumerateListExecutorTest.cpp
   Aql/ExecutionBlockImplTest.cpp
-  Aql/ExecutionBlockImplTestInstances.cpp
   Aql/ExecutionNodeTest.cpp
   Aql/ExecutorTestHelper.cpp
   Aql/FilterExecutorTest.cpp
@@ -288,15 +286,16 @@ set(ARANGODB_TESTS_SOURCES
   V8Server/V8AnalyzersTest.cpp
   V8Server/V8UsersTest.cpp
   V8Server/V8ViewsTest.cpp
-  VocBase/VocbaseTest.cpp
+  VocBase/ComputedValuesTest.cpp
   VocBase/KeyGeneratorTest.cpp
   VocBase/LogicalDataSourceTest.cpp
   VocBase/LogicalViewTest.cpp
   VocBase/VersionTest.cpp
+  VocBase/VocbaseTest.cpp
   VPackDeserializer/BasicTests.cpp
   Zkd/Conversion.cpp
   Zkd/Library.cpp
-  ${ADDITIONAL_TEST_SOURCES} Cluster/ShardAutoRebalancerTest.cpp)
+  Cluster/ShardAutoRebalancerTest.cpp)
 
 set(ARANGODB_REPLICATION2_TEST_SOURCES
   Replication2/Helper/ModelChecker/Actors.cpp
@@ -397,7 +396,6 @@ set(ARANGODB_GRAPH_TEST_SOURCES
   ${ADDITIONAL_GRAPH_TEST_SOURCES}
 )
 
-
 if (LINUX)
   # add "-fno-var-tracking" to the compiler flags
   # this speeds up the compilation with optimizations and newer g++ versions
@@ -410,15 +408,12 @@ if (LINUX)
     set_source_files_properties(${ARANGODB_TESTS_SOURCES} PROPERTIES COMPILE_FLAGS -fno-var-tracking)
   endif ()
 endif ()
-
 add_executable(
   arangodbtests
   ../cmake/activeCodePage.manifest
   ${ARANGODB_TESTS_SOURCES}
   ${ARANGODB_REPLICATION2_TEST_SOURCES}
-  ${ARANGODB_GRAPH_TEST_SOURCES}
-  main.cpp
-)
+  main.cpp)
 
 set(USE_SEPARATE_REPLICATION2_TESTS_BINARY FALSE CACHE BOOL
   "Write a separate binary 'arangodbtests_replication2', containing only the Replication 2.0 tests.")
@@ -439,7 +434,6 @@ if (USE_SEPARATE_GRAPH_TESTS_BINARY)
   add_executable(
           arangodbtests_graph
           ${ARANGODB_TESTS_COMMON_SOURCES}
-          ${ARANGODB_GRAPH_TEST_SOURCES}
           main.cpp
   )
 endif()
@@ -594,3 +588,5 @@ foreach(ELEMENT ${IRESEARCH_LIB_RESOURCES})
     )
   endif()
 endforeach()
+
+add_subdirectory(sepp)

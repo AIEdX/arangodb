@@ -273,6 +273,7 @@ set(LIB_ARANGO_PREGEL_SOURCES
   Pregel/Algos/EffectiveCloseness/EffectiveCloseness.cpp
   Pregel/Algos/EffectiveCloseness/HLLCounter.cpp
   Pregel/Algos/HITS.cpp
+  Pregel/Algos/HITSKleinberg.cpp
   Pregel/Algos/LabelPropagation.cpp
   Pregel/Algos/LineRank.cpp
   Pregel/Algos/PageRank.cpp
@@ -298,6 +299,12 @@ set(LIB_ARANGO_PREGEL_SOURCES
   RestHandler/RestControlPregelHandler.cpp
   RestHandler/RestPregelHandler.cpp
 )
+
+if (USE_MAINTAINER_MODE)
+  set(LIB_ARANGO_PREGEL_SOURCES ${LIB_ARANGO_PREGEL_SOURCES}
+    Pregel/Algos/ReadWrite.cpp
+  )
+endif()
 
 set(LIB_ARANGO_AQL_SOURCES
   Aql/Aggregator.cpp
@@ -358,7 +365,6 @@ set(LIB_ARANGO_AQL_SOURCES
   Aql/EnumerateListExecutor.cpp
   Aql/EnumeratePathsExecutor.cpp
   Aql/ExecutionBlock.cpp
-  Aql/ExecutionBlockImpl.cpp
   Aql/ExecutionEngine.cpp
   Aql/ExecutionNode.cpp
   Aql/ExecutionNodeId.cpp
@@ -636,9 +642,13 @@ set(LIB_ARANGO_REPLICATION2_SOURCES
   Replication2/StateMachines/Document/DocumentFollowerState.cpp
   Replication2/StateMachines/Document/DocumentLeaderState.cpp
   Replication2/StateMachines/Document/DocumentLogEntry.cpp
+  Replication2/StateMachines/Document/DocumentStateAgencyHandler.cpp
+  Replication2/StateMachines/Document/DocumentStateHandlersFactory.cpp
   Replication2/StateMachines/Document/DocumentStateMachine.cpp
   Replication2/StateMachines/Document/DocumentStateMachineFeature.cpp
-  Replication2/StateMachines/Document/DocumentStateStrategy.cpp
+  Replication2/StateMachines/Document/DocumentStateShardHandler.cpp
+  Replication2/StateMachines/Document/DocumentStateTransaction.cpp
+  Replication2/StateMachines/Document/DocumentStateTransactionHandler.cpp
   Replication2/StateMachines/Prototype/PrototypeLogEntry.cpp
   Replication2/StateMachines/Prototype/PrototypeLeaderState.cpp
   Replication2/StateMachines/Prototype/PrototypeCore.cpp
@@ -753,6 +763,7 @@ set(LIB_ARANGOSERVER_SOURCES
   Cluster/ClusterTrxMethods.cpp
   Cluster/ClusterTypes.cpp
   Cluster/ClusterUpgradeFeature.cpp
+  Cluster/CollectionInfoCurrent.cpp
   Cluster/CreateCollection.cpp
   Cluster/CreateDatabase.cpp
   Cluster/DBServerAgencySync.cpp
@@ -953,7 +964,6 @@ add_library(arango_restart_action STATIC
 
 add_library(arango_graph STATIC
   ${LIB_ARANGO_GRAPH_SOURCES}
-  ${ADDITIONAL_LIB_ARANGO_GRAPH_SOURCES}
 )
 
 add_library(arango_pregel STATIC
@@ -972,7 +982,6 @@ add_library(arango_health STATIC
 
 add_library(arango_vocbase STATIC
   ${LIB_ARANGO_VOCBASE_SOURCES}
-  ${ADDITIONAL_LIB_ARANGO_VOCBASE_SOURCES}
 )
 
 add_library(arango_v8server STATIC
@@ -1019,7 +1028,6 @@ add_library(arango_agency STATIC
 
 add_library(arangoserver STATIC
   ${LIB_ARANGOSERVER_SOURCES}
-  ${ADDITIONAL_LIB_ARANGOSERVER_SOURCES}
 )
 
 add_library(arango_network STATIC
@@ -1028,7 +1036,6 @@ add_library(arango_network STATIC
 
 add_library(arango_rocksdb STATIC
   ${ROCKSDB_SOURCES}
-  ${ADDITIONAL_LIB_ARANGO_ROCKSDB_SOURCES}
 )
 target_link_libraries(arango_rocksdb arango_zkd)
 target_link_libraries(arango_rocksdb snappy)
@@ -1052,7 +1059,6 @@ add_library(arango_common_rest_handler STATIC
 
 add_library(arango_cluster_methods STATIC
   ${LIB_ARANGO_CLUSTER_METHODS_SOURCES}
-  ${ADDITIONAL_LIB_ARANGO_CLUSTER_METHODS_SOURCES}
 )
 
 # Note that arango_geo publicly exports the /J compile option for MSVC, because
@@ -1228,29 +1234,7 @@ if (MSVC)
 endif()
 
 if (USE_ENTERPRISE)
-  add_library(arango_rclone STATIC
-    ${LIB_RCLONE_SOURCES}
-  )
-
-  target_link_libraries(arango_rclone arango)
-
   target_link_libraries(arango_rocksdb arango_rclone)
-endif()
-
-if (USE_ENTERPRISE)
-  add_definitions(-DUSE_ENTERPRISE=1)
-
-  if (MSVC)
-    target_link_libraries(arangoserver
-      Wldap32.lib
-    )
-  else()
-    target_link_libraries(arangoserver
-      ${LDAP_LIB}
-      ${LBER_LIB}
-      ${OPENSSL_LIBRARIES}
-    )
-  endif()
 endif()
 
 add_executable(${BIN_ARANGOD}

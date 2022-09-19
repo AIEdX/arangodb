@@ -1051,7 +1051,7 @@ std::shared_ptr<arangodb::Index> PhysicalCollectionMock::createIndex(
   } else if (type == "inverted") {
     index =
         StorageEngineMock::buildInvertedIndexMock(id, _logicalCollection, info);
-  } else if (type == arangodb::iresearch::StaticStrings::ViewType) {
+  } else if (type == arangodb::iresearch::StaticStrings::ViewArangoSearchType) {
     try {
       auto& server = _logicalCollection.vocbase().server();
       if (arangodb::ServerState::instance()->isCoordinator()) {
@@ -2101,11 +2101,20 @@ arangodb::Result TransactionStateMock::performIntermediateCommitIfRequired(
   return arangodb::Result();
 }
 
-uint64_t TransactionStateMock::numCommits() const {
+uint64_t TransactionStateMock::numCommits() const noexcept {
   return commitTransactionCount;
 }
 
-bool TransactionStateMock::hasFailedOperations() const {
+uint64_t TransactionStateMock::numIntermediateCommits() const noexcept {
+  return 0;
+}
+
+void TransactionStateMock::addIntermediateCommits(uint64_t /*value*/) {
+  // should never be called during testing
+  TRI_ASSERT(false);
+}
+
+bool TransactionStateMock::hasFailedOperations() const noexcept {
   return false;  // assume no failed operations
 }
 
