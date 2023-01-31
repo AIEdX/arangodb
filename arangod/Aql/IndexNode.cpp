@@ -43,6 +43,7 @@
 #include "Basics/AttributeNameParser.h"
 #include "Basics/StringUtils.h"
 #include "Basics/VelocyPackHelper.h"
+#include "Containers/FlatHashSet.h"
 #include "Indexes/Index.h"
 #include "StorageEngine/EngineSelectorFeature.h"
 #include "StorageEngine/StorageEngine.h"
@@ -311,7 +312,7 @@ NonConstExpressionContainer IndexNode::buildNonConstExpressions() const {
 
     return utils::extractNonConstPartsOfIndexCondition(
         _plan->getAst(), getRegisterPlan()->varInfo, options().evaluateFCalls,
-        idx->sparse() || idx->isSorted(), _condition->root(), _outVariable);
+        idx.get(), _condition->root(), _outVariable);
   }
   return {};
 }
@@ -478,8 +479,8 @@ CostEstimate IndexNode::estimateCost() const {
 
     if (root != nullptr && root->numMembers() > i) {
       auto const* condition = _allCoveredByOneIndex ? root : root->getMember(i);
-      costs = _indexes[i]->supportsFilterCondition({}, condition, _outVariable,
-                                                   itemsInCollection);
+      costs = _indexes[i]->supportsFilterCondition(
+          trx, {}, condition, _outVariable, itemsInCollection);
     }
 
     totalItems += costs.estimatedItems;
@@ -587,7 +588,7 @@ void IndexNode::prepareProjections() {
     // if we have a covering index and a post-filter condition,
     // extract which projections we will need just to execute
     // the filter condition
-    std::unordered_set<AttributeNamePath> attributes;
+    containers::FlatHashSet<AttributeNamePath> attributes;
 
     if (Ast::getReferencedAttributesRecursive(
             this->filter()->node(), this->outVariable(),

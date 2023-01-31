@@ -20,14 +20,16 @@
 ///
 /// @author Valery Mironov
 ////////////////////////////////////////////////////////////////////////////////
+
 #pragma once
 
 #include "VocBase/LogicalView.h"
 #include "IResearch/IResearchCommon.h"
 #include "IResearch/IResearchDataStore.h"
+#include "IResearch/IResearchFilterContext.h"
+#include "IResearch/IResearchFilterFactory.h"
 #include "IResearch/ViewSnapshot.h"
 #include "Containers/FlatHashMap.h"
-#include "IResearchFilterFactory.h"
 
 #include <shared_mutex>
 #include <atomic>
@@ -106,7 +108,8 @@ class Search final : public LogicalView {
   //////////////////////////////////////////////////////////////////////////////
   /// @brief get all indexes
   //////////////////////////////////////////////////////////////////////////////
-  ViewSnapshot::Links getLinks() const;
+  ViewSnapshot::Links getLinks(
+      containers::FlatHashSet<DataSourceId> const* sources) const;
 
   /// LogicalView
 

@@ -23,19 +23,28 @@
 
 #pragma once
 
+#include "Replication2/StateMachines/Document/ActiveTransactionsQueue.h"
 #include "Replication2/StateMachines/Document/DocumentCore.h"
 #include "Replication2/StateMachines/Document/DocumentStateMachine.h"
+#include "Replication2/StateMachines/Document/DocumentStateSnapshotHandler.h"
 
 #include "Basics/UnshackledMutex.h"
 
+#include <atomic>
 #include <memory>
+
+namespace arangodb::transaction {
+struct IManager;
+}
 
 namespace arangodb::replication2::replicated_state::document {
 struct DocumentLeaderState
-    : replicated_state::IReplicatedLeaderState<DocumentState> {
+    : replicated_state::IReplicatedLeaderState<DocumentState>,
+      std::enable_shared_from_this<DocumentLeaderState> {
   explicit DocumentLeaderState(
       std::unique_ptr<DocumentCore> core,
-      std::shared_ptr<IDocumentStateHandlersFactory> handlersFactory);
+      std::shared_ptr<IDocumentStateHandlersFactory> handlersFactory,
+      transaction::IManager& transactionManager);
 
   [[nodiscard]] auto resign() && noexcept
       -> std::unique_ptr<DocumentCore> override;
@@ -47,9 +56,21 @@ struct DocumentLeaderState
                           OperationType operation, TransactionId transactionId,
                           ReplicationOptions opts) -> futures::Future<LogIndex>;
 
-  LoggerContext const loggerContext;
-  std::string_view const shardId;
+  std::size_t getActiveTransactionsCount() const noexcept {
+    return _activeTransactions.getLockedGuard()->size();
+  }
+
+  auto snapshotStart(SnapshotParams::Start const& params)
+      -> ResultT<SnapshotBatch>;
+  auto snapshotNext(SnapshotParams::Next const& params)
+      -> ResultT<SnapshotBatch>;
+  auto snapshotFinish(SnapshotParams::Finish const& params) -> Result;
+  auto snapshotStatus(SnapshotId id) -> ResultT<SnapshotStatus>;
+  auto allSnapshotsStatus() -> ResultT<AllSnapshotsStatus>;
+
   GlobalLogIdentifier const gid;
+  LoggerContext const loggerContext;
+  ShardID const shardId;
 
  private:
   struct GuardedData {
@@ -60,7 +81,17 @@ struct DocumentLeaderState
     std::unique_ptr<DocumentCore> core;
   };
 
+  template<class ResultType, class GetFunc, class ProcessFunc>
+  auto executeSnapshotOperation(GetFunc getSnapshot,
+                                ProcessFunc processSnapshot) -> ResultType;
+
   std::shared_ptr<IDocumentStateHandlersFactory> _handlersFactory;
   Guarded<GuardedData, basics::UnshackledMutex> _guardedData;
+  Guarded<ActiveTransactionsQueue, std::mutex> _activeTransactions;
+  transaction::IManager& _transactionManager;
+  Guarded<std::unique_ptr<IDocumentStateSnapshotHandler>,
+          basics::UnshackledMutex>
+      _snapshotHandler;
+  std::atomic_bool _isResigning;
 };
 }  // namespace arangodb::replication2::replicated_state::document

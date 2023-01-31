@@ -45,10 +45,9 @@ void serializationChecker(ArangodServer& server,
 
   arangodb::iresearch::IResearchInvertedIndexMeta metaLhs, metaRhs;
   std::string errorString;
-  TRI_vocbase_t vocbase(TRI_vocbase_type_e::TRI_VOCBASE_TYPE_NORMAL,
-                        testDBInfo(server));
+  TRI_vocbase_t vocbase(testDBInfo(server));
   auto res = metaLhs.init(server, json->slice(), true, errorString,
-                          irs::string_ref(vocbase.name()));
+                          std::string_view(vocbase.name()));
   {
     SCOPED_TRACE(::testing::Message("Unexpected error:") << errorString);
     ASSERT_TRUE(res);
@@ -62,7 +61,7 @@ void serializationChecker(ArangodServer& server,
   }
 
   res = metaRhs.init(server, serializedLhs.slice(), true, errorString,
-                     irs::string_ref(vocbase.name()));
+                     std::string_view(vocbase.name()));
   {
     SCOPED_TRACE(::testing::Message("Unexpected error:")
                  << errorString << " in: " << serializedLhs.toString());
@@ -469,10 +468,9 @@ TEST_F(IResearchInvertedIndexMetaTest, testWrongDefinitions) {
 
     arangodb::iresearch::IResearchInvertedIndexMeta meta;
     std::string errorString;
-    TRI_vocbase_t vocbase(TRI_vocbase_type_e::TRI_VOCBASE_TYPE_NORMAL,
-                          testDBInfo(server.server()));
+    TRI_vocbase_t vocbase(testDBInfo(server.server()));
     auto res = meta.init(server.server(), json->slice(), true, errorString,
-                         irs::string_ref(vocbase.name()));
+                         std::string_view(vocbase.name()));
     {
       SCOPED_TRACE(::testing::Message("Definition is not failing: ") << jsonD);
       ASSERT_FALSE(res);
@@ -623,10 +621,9 @@ TEST_F(IResearchInvertedIndexMetaTest, testCorrectDefinitions) {
 
     arangodb::iresearch::IResearchInvertedIndexMeta meta;
     std::string errorString;
-    TRI_vocbase_t vocbase(TRI_vocbase_type_e::TRI_VOCBASE_TYPE_NORMAL,
-                          testDBInfo(server.server()));
+    TRI_vocbase_t vocbase(testDBInfo(server.server()));
     auto res = meta.init(server.server(), json->slice(), true, errorString,
-                         irs::string_ref(vocbase.name()));
+                         std::string_view(vocbase.name()));
     {
       SCOPED_TRACE(::testing::Message("Definition is failing: ") << jsonD);
       ASSERT_TRUE(res);
@@ -663,10 +660,9 @@ TEST_F(IResearchInvertedIndexMetaTest,
 
   arangodb::iresearch::IResearchInvertedIndexMeta meta;
   std::string errorString;
-  TRI_vocbase_t vocbase(TRI_vocbase_type_e::TRI_VOCBASE_TYPE_NORMAL,
-                        testDBInfo(server.server()));
+  TRI_vocbase_t vocbase(testDBInfo(server.server()));
   auto res = meta.init(server.server(), json->slice(), false, errorString,
-                       irs::string_ref(vocbase.name()));
+                       std::string_view(vocbase.name()));
   ASSERT_FALSE(res);
 }
 
@@ -697,10 +693,9 @@ TEST_F(IResearchInvertedIndexMetaTest,
 
   arangodb::iresearch::IResearchInvertedIndexMeta meta;
   std::string errorString;
-  TRI_vocbase_t vocbase(TRI_vocbase_type_e::TRI_VOCBASE_TYPE_NORMAL,
-                        testDBInfo(server.server()));
+  TRI_vocbase_t vocbase(testDBInfo(server.server()));
   auto res = meta.init(server.server(), json->slice(), false, errorString,
-                       irs::string_ref(vocbase.name()));
+                       std::string_view(vocbase.name()));
   ASSERT_FALSE(res);
 }
 
@@ -741,16 +736,15 @@ TEST_F(IResearchInvertedIndexMetaTest, testIgnoreAnalyzerDefinitions) {
                                       kDefinitionWithAnalyzers.size());
 
     std::string errorString;
-    TRI_vocbase_t vocbase(TRI_vocbase_type_e::TRI_VOCBASE_TYPE_NORMAL,
-                          testDBInfo(server.server()));
+    TRI_vocbase_t vocbase(testDBInfo(server.server()));
     auto res = metaLhs.init(server.server(), json->slice(), false, errorString,
-                            irs::string_ref(vocbase.name()));
+                            std::string_view(vocbase.name()));
     {
       SCOPED_TRACE(::testing::Message("Unexpected error in ") << errorString);
       ASSERT_TRUE(res);
     }
     ASSERT_TRUE(errorString.empty());
-    ASSERT_EQ(0, metaLhs._analyzerDefinitions.size());
+    ASSERT_EQ(1, metaLhs._analyzerDefinitions.size());
 
     VPackBuilder b;
     {
@@ -769,16 +763,15 @@ TEST_F(IResearchInvertedIndexMetaTest, testIgnoreAnalyzerDefinitions) {
                                       kDefinitionWithoutAnalyzers.size());
 
     std::string errorString;
-    TRI_vocbase_t vocbase(TRI_vocbase_type_e::TRI_VOCBASE_TYPE_NORMAL,
-                          testDBInfo(server.server()));
+    TRI_vocbase_t vocbase(testDBInfo(server.server()));
     auto res = metaRhs.init(server.server(), json->slice(), false, errorString,
-                            irs::string_ref(vocbase.name()));
+                            std::string_view(vocbase.name()));
     {
       SCOPED_TRACE(::testing::Message("Unexpected error in ") << errorString);
       ASSERT_TRUE(res);
     }
     ASSERT_TRUE(errorString.empty());
-    ASSERT_EQ(0, metaRhs._analyzerDefinitions.size());
+    ASSERT_EQ(1, metaRhs._analyzerDefinitions.size());
 
     VPackBuilder b;
     {
@@ -881,49 +874,51 @@ TEST_F(IResearchInvertedIndexMetaTest, testReadDefaults) {
     arangodb::iresearch::IResearchInvertedIndexMeta meta;
     std::string errorString;
     ASSERT_TRUE(meta.init(server.server(), json->slice(), false, errorString,
-                          irs::string_ref::NIL));
+                          std::string_view{}));
     ASSERT_TRUE(errorString.empty());
-    ASSERT_EQ(0, meta._analyzerDefinitions.size());
+    ASSERT_EQ(1, meta._analyzerDefinitions.size());
     ASSERT_EQ(1, meta._fields.size());
     ASSERT_EQ("dummy", meta._fields.front().toString());
     ASSERT_TRUE(meta._sort.empty());
     ASSERT_TRUE(meta._storedValues.empty());
     ASSERT_EQ(irs::type<irs::compression::lz4>::id(),
               meta._sort.sortCompression());
-    ASSERT_TRUE(meta._analyzerDefinitions.empty());
+    ASSERT_EQ(1, meta._analyzerDefinitions.size());
     ASSERT_FALSE(meta.dense());
     ASSERT_EQ(static_cast<uint32_t>(arangodb::iresearch::LinkVersion::MAX),
               meta._version);
     ASSERT_EQ(Consistency::kEventual, meta._consistency);
     ASSERT_FALSE(meta._analyzers.empty());
     ASSERT_EQ(meta._analyzers[0]._shortName, "identity");
-    ASSERT_EQ(meta._features, arangodb::iresearch::Features());
+    ASSERT_EQ(meta._features,
+              arangodb::iresearch::Features(FieldFeatures::NORM,
+                                            irs::IndexFeatures::FREQ));
     ASSERT_FALSE(meta._isSearchField);
   }
   // with active vocbase
   {
     arangodb::iresearch::IResearchInvertedIndexMeta meta;
     std::string errorString;
-    TRI_vocbase_t vocbase(TRI_vocbase_type_e::TRI_VOCBASE_TYPE_NORMAL,
-                          testDBInfo(server.server()));
+    TRI_vocbase_t vocbase(testDBInfo(server.server()));
     ASSERT_TRUE(meta.init(server.server(), json->slice(), false, errorString,
-                          irs::string_ref(vocbase.name())));
+                          std::string_view(vocbase.name())));
     ASSERT_TRUE(errorString.empty());
-    ASSERT_EQ(0, meta._analyzerDefinitions.size());
+    ASSERT_EQ(1, meta._analyzerDefinitions.size());
     ASSERT_EQ(1, meta._fields.size());
     ASSERT_EQ("dummy", meta._fields.front().toString());
     ASSERT_TRUE(meta._sort.empty());
     ASSERT_TRUE(meta._storedValues.empty());
     ASSERT_EQ(irs::type<irs::compression::lz4>::id(),
               meta._sort.sortCompression());
-    ASSERT_TRUE(meta._analyzerDefinitions.empty());
+    ASSERT_EQ(1, meta._analyzerDefinitions.size());
     ASSERT_FALSE(meta.dense());
     ASSERT_EQ(static_cast<uint32_t>(arangodb::iresearch::LinkVersion::MAX),
               meta._version);
     ASSERT_EQ(Consistency::kEventual, meta._consistency);
     ASSERT_FALSE(meta._analyzers.empty());
     ASSERT_EQ(meta._analyzers[0]._shortName, "identity");
-    ASSERT_EQ(meta._features, arangodb::iresearch::Features());
+    ASSERT_EQ(meta._features,
+              Features(FieldFeatures::NORM, irs::IndexFeatures::FREQ));
     ASSERT_FALSE(meta._isSearchField);
   }
 }
@@ -953,16 +948,15 @@ TEST_F(IResearchInvertedIndexMetaTest, testDataStoreMetaFields) {
 
   arangodb::iresearch::IResearchInvertedIndexMeta meta;
   std::string errorString;
-  TRI_vocbase_t vocbase(TRI_vocbase_type_e::TRI_VOCBASE_TYPE_NORMAL,
-                        testDBInfo(server.server()));
+  TRI_vocbase_t vocbase(testDBInfo(server.server()));
   auto res = meta.init(server.server(), json->slice(), true, errorString,
-                       irs::string_ref(vocbase.name()));
+                       std::string_view(vocbase.name()));
   {
     SCOPED_TRACE(::testing::Message("Unexpected error:") << errorString);
     ASSERT_TRUE(res);
   }
   ASSERT_TRUE(errorString.empty());
-  ASSERT_EQ(0, meta._analyzerDefinitions.size());
+  ASSERT_EQ(1, meta._analyzerDefinitions.size());
   ASSERT_EQ(1, meta._fields.size());
   ASSERT_TRUE(meta._sort.empty());
   ASSERT_TRUE(meta._storedValues.empty());
@@ -974,7 +968,8 @@ TEST_F(IResearchInvertedIndexMetaTest, testDataStoreMetaFields) {
   ASSERT_EQ(meta._consistency, Consistency::kEventual);
   ASSERT_FALSE(meta._analyzers.empty());
   ASSERT_EQ(meta._analyzers[0]._shortName, "identity");
-  ASSERT_EQ(meta._features, arangodb::iresearch::Features());
+  ASSERT_EQ(meta._features,
+            Features(FieldFeatures::NORM, irs::IndexFeatures::FREQ));
   ASSERT_EQ(meta._writebufferActive, 10);
   ASSERT_EQ(meta._writebufferIdle, 11);
   ASSERT_EQ(meta._writebufferSizeMax, 12);
@@ -1014,10 +1009,9 @@ TEST_F(IResearchInvertedIndexMetaTest, testmatchesFieldsDefinition) {
 
   arangodb::iresearch::IResearchInvertedIndexMeta meta;
   std::string errorString;
-  TRI_vocbase_t vocbase(TRI_vocbase_type_e::TRI_VOCBASE_TYPE_NORMAL,
-                        testDBInfo(server.server()));
+  TRI_vocbase_t vocbase(testDBInfo(server.server()));
   auto res = meta.init(server.server(), json->slice(), true, errorString,
-                       irs::string_ref(vocbase.name()));
+                       std::string_view(vocbase.name()));
   {
     SCOPED_TRACE(::testing::Message("Unexpected error:") << errorString);
     ASSERT_TRUE(res);

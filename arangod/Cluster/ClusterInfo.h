@@ -70,6 +70,7 @@ namespace replication2 {
 class LogId;
 namespace agency {
 struct LogPlanSpecification;
+struct LogTarget;
 }  // namespace agency
 namespace replicated_state::agency {
 struct Target;
@@ -476,7 +477,7 @@ class ClusterInfo final {
       double timeout,  // request timeout
       bool isNewDatabase,
       std::shared_ptr<LogicalCollection> const& colToDistributeShardsLike,
-      replication::Version replicationVersion = replication::Version::ONE);
+      replication::Version replicationVersion);
 
   /// @brief this method does an atomic check of the preconditions for the
   /// collections to be created, using the currently loaded plan.
@@ -692,6 +693,12 @@ class ClusterInfo final {
   std::shared_ptr<std::vector<ServerID> const> getResponsibleServer(
       std::string_view shardID);
 
+  std::shared_ptr<std::vector<ServerID> const> getResponsibleServerReplication1(
+      std::string_view shardID);
+
+  std::shared_ptr<std::vector<ServerID> const> getResponsibleServerReplication2(
+      std::string_view shardID);
+
   //////////////////////////////////////////////////////////////////////////////
   /// @brief atomically find all servers who are responsible for the given
   /// shards (only the leaders).
@@ -703,6 +710,14 @@ class ClusterInfo final {
 
   containers::FlatHashMap<ShardID, ServerID> getResponsibleServers(
       containers::FlatHashSet<ShardID> const&);
+
+  void getResponsibleServersReplication1(
+      containers::FlatHashSet<ShardID> const& shardIds,
+      containers::FlatHashMap<ShardID, ServerID>& result);
+
+  bool getResponsibleServersReplication2(
+      containers::FlatHashSet<ShardID> const& shardIds,
+      containers::FlatHashMap<ShardID, ServerID>& result);
 
   //////////////////////////////////////////////////////////////////////////////
   /// @brief atomically find all servers who are responsible for the given
@@ -938,7 +953,7 @@ class ClusterInfo final {
                                       std::vector<std::string> const& serverIds,
                                       ClusterCollectionCreationInfo const& info,
                                       std::string const& databaseName)
-      -> replication2::replicated_state::agency::Target;
+      -> replication2::agency::LogTarget;
 
   //////////////////////////////////////////////////////////////////////////////
   /// @brief returns a future which can be used to wait for the successful
@@ -946,8 +961,8 @@ class ClusterInfo final {
   //////////////////////////////////////////////////////////////////////////////
   auto waitForReplicatedStatesCreation(
       std::string const& databaseName,
-      std::vector<replication2::replicated_state::agency::Target> const&
-          replicatedStates) -> futures::Future<Result>;
+      std::vector<replication2::agency::LogTarget> const& replicatedStates)
+      -> futures::Future<Result>;
 
   //////////////////////////////////////////////////////////////////////////////
   /// @brief deletes replicated states corresponding to shards
@@ -1062,7 +1077,8 @@ class ClusterInfo final {
   // responsible and Current contains the actual current responsibility.
 
   // The Plan state:
-  AllCollections _plannedCollections;  // from Plan/Collections/
+  AllCollections _plannedCollections;     // from Plan/Collections/
+  AllCollections _newPlannedCollections;  // TODO
   containers::FlatHashMap<CollectionID,
                           std::shared_ptr<std::vector<std::string>>>
       _shards;  // from Plan/Collections/
@@ -1132,6 +1148,7 @@ class ClusterInfo final {
   using ReplicatedLogsMap = containers::FlatHashMap<
       replication2::LogId,
       std::shared_ptr<replication2::agency::LogPlanSpecification const>>;
+  // note: protected by _planProt!
   ReplicatedLogsMap _replicatedLogs;
 
   using CollectionGroupMap = containers::FlatHashMap<

@@ -122,6 +122,10 @@ class GraphNode : public ExecutionNode {
   /// only!)
   bool isDisjoint() const;
 
+  /// @brief flag, if the graph is a Hybrid Disjoint SmartGraph
+  /// (Enterprise Edition only!)
+  bool isHybridDisjoint() const;
+
   /// @brief return the database
   TRI_vocbase_t* vocbase() const;
 
@@ -130,6 +134,8 @@ class GraphNode : public ExecutionNode {
 
   /// @brief checks if the vertex out variable is used
   bool isVertexOutVariableUsedLater() const;
+
+  void markUnusedConditionVariable(Variable const* var);
 
   /// @brief set the vertex out variable
   void setVertexOutput(Variable const* outVar);
@@ -247,6 +253,9 @@ class GraphNode : public ExecutionNode {
 
   /// @brief vertex output variable
   Variable const* _edgeOutVariable;
+
+  /// @brief variables that got optimized out
+  VarIdSet _optimizedOutVariables;
 
   /// @brief our graph...
   graph::Graph const* _graphObj;

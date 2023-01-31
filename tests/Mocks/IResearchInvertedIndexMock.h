@@ -33,6 +33,9 @@ namespace arangodb::iresearch {
 
 class IResearchInvertedIndexMock final : public Index,
                                          public IResearchInvertedIndex {
+  Index& index() noexcept final { return *this; }
+  Index const& index() const noexcept final { return *this; }
+
  public:
   IResearchInvertedIndexMock(
       IndexId iid, arangodb::LogicalCollection& collection,
@@ -46,7 +49,7 @@ class IResearchInvertedIndexMock final : public Index,
   [[nodiscard]] static auto setCallbackForScope(
       std::function<irs::directory_attributes()> callback) {
     InitCallback = callback;
-    return irs::make_finally([]() noexcept { InitCallback = nullptr; });
+    return irs::Finally{[]() noexcept { InitCallback = nullptr; }};
   }
 
   void toVelocyPack(
@@ -85,20 +88,23 @@ class IResearchInvertedIndexMock final : public Index,
   void afterTruncate(TRI_voc_tick_t tick, transaction::Methods* trx) final;
 
   std::unique_ptr<IndexIterator> iteratorForCondition(
-      transaction::Methods* trx, aql::AstNode const* node,
-      aql::Variable const* reference, IndexIteratorOptions const& opts,
-      ReadOwnWrites readOwnWrites, int mutableConditionIdx) final;
+      ResourceMonitor& monitor, transaction::Methods* trx,
+      aql::AstNode const* node, aql::Variable const* reference,
+      IndexIteratorOptions const& opts, ReadOwnWrites readOwnWrites,
+      int mutableConditionIdx) final;
 
   Index::SortCosts supportsSortCondition(
       aql::SortCondition const* sortCondition, aql::Variable const* reference,
       size_t itemsInIndex) const final;
 
   Index::FilterCosts supportsFilterCondition(
+      transaction::Methods& trx,
       std::vector<std::shared_ptr<Index>> const& allIndexes,
       aql::AstNode const* node, aql::Variable const* reference,
       size_t itemsInIndex) const final;
 
-  aql::AstNode* specializeCondition(aql::AstNode* node,
+  aql::AstNode* specializeCondition(transaction::Methods& trx,
+                                    aql::AstNode* node,
                                     aql::Variable const* reference) const final;
 
   Result insert(transaction::Methods& trx, LocalDocumentId documentId,
@@ -109,8 +115,6 @@ class IResearchInvertedIndexMock final : public Index,
   void unload() final;
 
   void invalidateQueryCache(TRI_vocbase_t* vocbase) final;
-
-  irs::comparer const* getComparator() const noexcept final;
 
   static std::function<irs::directory_attributes()> InitCallback;
 };
